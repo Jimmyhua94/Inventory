@@ -1,0 +1,20 @@
+#!/usr/bin/env node
+
+var app = require('../app');
+var pg = require('../lib/postgres');
+
+var config = {
+  user: 'jimmy',
+  password: 'Password',
+  database: 'inventory',
+  host: 'localhost',
+  port: 5432,
+  max: 10,
+  idleTimeoutMillis: 30000,
+};
+
+pg.initialize(config, function() {
+  app.listen(3000, function() {
+    console.log('Server listening on port 3000');
+  });
+});
