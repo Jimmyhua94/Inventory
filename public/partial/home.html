@@ -1,0 +1,33 @@
+<div class="container">
+  <button type="button" ng-click="open(item,'add')"> testing </button>
+  <div class="inventory">
+    <table>
+      <tr>
+        <th>ID</th>
+        <th>SKU</th>
+        <th>Brand</th>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Price</th>
+        <th>Stock</th>
+        <th>Category</th>
+        <th></th>
+      <tr>
+      <tr ng-hide="inventory.length>-1"><td>Loading</td></tr>
+      <tr ng-repeat="item in inventory | orderBy:'id'">
+        <td><div class="data">{{item.id}}</div></td>
+        <td><div class="data">{{item.sku}}</div></td>
+        <td><div class="data">{{item.brand}}</div></td>
+        <td><div class="data">{{item.name}}</div></td>
+        <td><div class="data">{{item.description}}</div></td>
+        <td><div class="data">{{item.price}}</div></td>
+        <td><div class="data">{{item.stock}}</div></td>
+        <td><div class="data">{{item.category}}</div></td>
+        <td><div class="data">
+          <button type="button" ng-click="open(item, 'update')"> Edit </button>
+          <button type="button" ng-click="delete(item, $index)"> Delete </button>
+        </div></td>
+      </tr>
+    </table>
+  </div>
+</div>

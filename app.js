@@ -7,11 +7,6 @@ var postgres = require('./lib/postgres');
 var app = express();
 
 app.use(express.static('public'));
-/*
-app.use(function(req, res, next){
-  res.status(404).sendFile('public/404.html', { root: __dirname });
-});
-*/
 
 app.use(bodyParser.json({ type: 'application/json' }));
 app.use(validator());
@@ -20,17 +15,25 @@ var inventoryRouter = express.Router();
 
 function error(err, res, code, msg) {
   console.error(err);
-  res.statusCode = code;
-  res.json({ errors: [msg] });
-  return res;
+  return res.status(code).json({ errors: [ msg ] });
 }
 
 function validateInventory(req, res, next) {
-  req.checkBody('sku', 'Invalid sku').notEmpty().isInt();
-  req.checkBody('name', 'Invalid name').notEmpty();
-  req.checkBody('description', 'Invalid description').notEmpty();
-  req.checkBody('price', 'Invalid price').notEmpty().isFloat();
-  req.checkBody('stock', 'Invalid stock').notEmpty().isInt();
+  if(req.body.sku || req.body.sku == "") {
+    req.checkBody('sku', 'Invalid sku').notEmpty().isInt();
+  }
+  if(req.body.name || req.body.name == "") {
+    req.checkBody('name', 'Invalid name').notEmpty();
+  }
+  if(req.body.description || req.body.description == "") {
+    req.checkBody('description', 'Invalid description').notEmpty();
+  }
+  if(req.body.price || req.body.price == "") {
+    req.checkBody('price', 'Invalid price').notEmpty().isFloat();
+  }
+  if(req.body.stock || req.body.stock == "") {
+    req.checkBody('stock', 'Invalid stock').notEmpty().isInt();
+  }
 
   var errors = req.validationErrors();
   if(errors) {
@@ -38,8 +41,7 @@ function validateInventory(req, res, next) {
     errors.forEach(function(err) {
       msg.errors.push(err.msg);
     });
-    res.statusCode = 400;
-    return res.json(msg);
+    return res.status(400).json(msg);
   }
   next();
 }
@@ -50,8 +52,7 @@ function lookupInventory(req, res, next) {
       return error(err, res, code, 'Failed to retrieve inventory');
     }
     if(result.rows.length === 0) {
-      res.statusCode = 404;
-      return res.json({ errors: ['Inventory not found'] });
+      return res.status(404).json({ errors: ['Inventory not found'] });
     }
     req.inventory = result.rows[0];
     next();
@@ -87,8 +88,7 @@ inventoryRouter.get('/', function(req, res) {
           return error(err, res, 500, 'Failed to retrive inventory');
         }
         if(results.rows.length === 0) {
-          res.status = 404;
-          return res.json({ errors: ['Inventory not found'] });
+          return res.status(404).json({ errors: ['Inventory not found'] });
         }
         res.json(results.rows);
       });
@@ -119,34 +119,28 @@ inventoryRouter.post('/', validateInventory, function(req, res) {
         if(err) {
           return error(err, res, 500, 'Failed to retrieve inventory after insert');
         }
-        res.statusCode = 201;
-        res.json(results.rows[0]);
+        return res.status(201).json(results.rows[0]);
       });
     });
   });
 });
 
 inventoryRouter.get('/:id([0-9]+)', lookupInventory, function(req, res) {
-  res.json(req.inventory);
+  return res.json(req.inventory);
 });
 
 inventoryRouter.patch('/:id([0-9]+)', validateInventory, lookupInventory, function(req, res) {
-  var data = [
-    req.params.id,
-    req.body.sku,
-    req.body.brand,
-    req.body.name,
-    req.body.description,
-    req.body.price,
-    req.body.stock,
-    req.body.category
-  ];
+  var columns = '';
+  for(var key in req.body){
+    columns += key + ' = \'' + req.body[key] + '\', ';
+  }
+  columns = columns.slice(0,-2);
 
   postgres.pool.connect(function(err, client, done) {
     if(err) {
       return error(err, res, 500, 'Failed to update inventory');
     }
-    client.query('UPDATE inventory SET sku = $2, brand = $3, name = $4, description = $5, price = $6, stock = $7, category = $8 WHERE id = $1', data, function(err, result) {
+    client.query('UPDATE inventory SET ' + columns + ' WHERE id = $1', [ req.params.id ], function(err, result) {
       if(err) {
         return error(err, res, 500, 'Failed to update inventory');
       }
@@ -155,8 +149,7 @@ inventoryRouter.patch('/:id([0-9]+)', validateInventory, lookupInventory, functi
         if(err) {
           return error(err, res, 500, 'Failed to retrieve inventory after update');
         }
-        res.statusCode = 201;
-        res.json(results.rows[0]);
+        return res.status(201).json(results.rows[0]);
       });
     });
   });
@@ -167,10 +160,18 @@ inventoryRouter.delete('/:id([0-9]+)', lookupInventory, function(req, res) {
     if(err) {
       return error(err, res, 500, 'Failed to delete inventory');
     }
-    res.json({ success: ['Inventory was deleted'] });
+    return res.json({ success: ['Inventory was deleted'] });
   });
 });
 
 app.use('/inventory', inventoryRouter);
+
+app.use('/inventory', function(err, req, res, next) {
+  res.status(err.statusCode).json({ errors: [ err.body + " - " + err.message ] });
+});
+
+app.use(function(req, res, next) {
+  res.status(404).redirect('/#' + req.originalUrl);
+});
 
 module.exports = app;
